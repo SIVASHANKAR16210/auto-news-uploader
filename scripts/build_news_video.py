@@ -31,6 +31,7 @@ YT_REFRESH_TOKEN = os.getenv("YT_REFRESH_TOKEN")
 
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"]
 
+
 def clean_text(value):
     if not value:
         return ""
@@ -38,6 +39,7 @@ def clean_text(value):
     value = re.sub(r"<.*?>", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
     return value
+
 
 def fetch_news():
     feed = feedparser.parse(RSS_URL)
@@ -50,10 +52,12 @@ def fetch_news():
             items.append({"title": title, "summary": summary, "link": link})
     return items
 
+
 def choose_story(items):
     if not items:
         raise ValueError("No news items found")
     return items[0]
+
 
 def build_summary(story):
     title = story["title"]
@@ -65,6 +69,7 @@ def build_summary(story):
         "In short, this topic reflects public interest and ongoing discussion."
     )
     return text[:700]
+
 
 def save_slide(path, title, subtitle, accent):
     width, height = 1280, 720
@@ -103,6 +108,7 @@ def save_slide(path, title, subtitle, accent):
     draw.text((90, 660), "Original automated brief • trending news summary", fill=(200,200,200), font=footer_font)
     img.save(path)
 
+
 def generate_slides(title, summary):
     slides_dir = WORK_DIR / "slides"
     slides_dir.mkdir(exist_ok=True)
@@ -117,11 +123,13 @@ def generate_slides(title, summary):
         save_slide(str(slides_dir / f"slide_{idx}.png"), head, body, color)
     return slides_dir
 
+
 def make_audio(summary):
     audio_path = WORK_DIR / "narration.mp3"
     tts = gTTS(text=summary, lang="en", slow=False)
     tts.save(str(audio_path))
     return audio_path
+
 
 def create_video(slides_dir, audio_path):
     video_path = WORK_DIR / "final_video.mp4"
@@ -140,9 +148,13 @@ def create_video(slides_dir, audio_path):
     subprocess.run(cmd, check=True)
     return video_path
 
+
 def get_youtube_service():
     if not (YT_CLIENT_ID and YT_CLIENT_SECRET and YT_REFRESH_TOKEN):
-        raise RuntimeError("Missing YouTube credentials in environment.")
+        raise RuntimeError(
+            "Missing YouTube credentials in environment. "
+            "Add YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN as GitHub repo secrets."
+        )
     creds = Credentials(
         token=None,
         refresh_token=YT_REFRESH_TOKEN,
@@ -154,19 +166,23 @@ def get_youtube_service():
     creds.refresh(Request())
     return build("youtube", "v3", credentials=creds, cache_discovery=False)
 
+
 def upload_video(file_path):
     title = os.getenv("VIDEO_TITLE", f"{datetime.utcnow().strftime('%Y-%m-%d')} News Brief")
-    description = os.getenv("VIDEO_DESCRIPTION", (
-        "Original automated news brief generated from current public headlines. "
-        "This is a new summary video and is not a copy of another creator's video."
-    ))
+    description = os.getenv(
+        "VIDEO_DESCRIPTION",
+        (
+            "Original automated news brief generated from current public headlines. "
+            "This is a new summary video and is not a copy of another creator's video."
+        ),
+    )
     privacy = os.getenv("YT_PRIVACY_STATUS", "private")
     youtube = get_youtube_service()
     body = {
         "snippet": {
             "title": title,
             "description": description,
-            "tags": ["news","brief","trending","automated"],
+            "tags": ["news", "brief", "trending", "automated"],
             "categoryId": "25",
         },
         "status": {
@@ -184,7 +200,15 @@ def upload_video(file_path):
     print("Upload complete. Video ID:", response.get("id"))
     return response.get("id")
 
+
 def main():
+    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]):
+        print(
+            "YouTube upload skipped because required GitHub secrets are not configured. "
+            "Add YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN to enable uploads."
+        )
+        return
+
     items = fetch_news()
     story = choose_story(items)
     summary = build_summary(story)
@@ -193,6 +217,7 @@ def main():
     final_video = create_video(slides_dir, audio_path)
     upload_video(str(final_video))
     print("SUCCESS: video created and uploaded")
+
 
 if __name__ == "__main__":
     main()
