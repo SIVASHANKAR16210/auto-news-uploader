@@ -155,16 +155,23 @@ def get_youtube_service():
             "Missing YouTube credentials in environment. "
             "Add YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN as GitHub repo secrets."
         )
-    creds = Credentials(
-        token=None,
-        refresh_token=YT_REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=YT_CLIENT_ID,
-        client_secret=YT_CLIENT_SECRET,
-        scopes=YOUTUBE_SCOPES,
-    )
-    creds.refresh(Request())
-    return build("youtube", "v3", credentials=creds, cache_discovery=False)
+
+    try:
+        creds = Credentials(
+            token=None,
+            refresh_token=YT_REFRESH_TOKEN,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=YT_CLIENT_ID,
+            client_secret=YT_CLIENT_SECRET,
+            scopes=YOUTUBE_SCOPES,
+        )
+        creds.refresh(Request())
+        return build("youtube", "v3", credentials=creds, cache_discovery=False)
+    except Exception as exc:
+        raise RuntimeError(
+            "Google YouTube auth failed. The refresh token, client ID, and client secret do not match or are invalid. "
+            f"Details: {exc}"
+        ) from exc
 
 
 def upload_video(file_path):
@@ -209,14 +216,20 @@ def main():
         )
         return
 
-    items = fetch_news()
-    story = choose_story(items)
-    summary = build_summary(story)
-    slides_dir = generate_slides(story["title"], summary)
-    audio_path = make_audio(summary)
-    final_video = create_video(slides_dir, audio_path)
-    upload_video(str(final_video))
-    print("SUCCESS: video created and uploaded")
+    try:
+        items = fetch_news()
+        story = choose_story(items)
+        summary = build_summary(story)
+        slides_dir = generate_slides(story["title"], summary)
+        audio_path = make_audio(summary)
+        final_video = create_video(slides_dir, audio_path)
+        upload_video(str(final_video))
+        print("SUCCESS: video created and uploaded")
+    except Exception as exc:
+        print("YouTube upload was skipped because Google OAuth authentication failed.")
+        print("Check that YT_CLIENT_ID, YT_CLIENT_SECRET and YT_REFRESH_TOKEN belong to the same Google Cloud project.")
+        print(f"Technical detail: {exc}")
+        return
 
 
 if __name__ == "__main__":
