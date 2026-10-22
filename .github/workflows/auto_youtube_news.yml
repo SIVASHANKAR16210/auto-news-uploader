@@ -2,13 +2,20 @@ name: Auto News Video Uploader
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # daily at 09:00 UTC
+    - cron: "0 9 * * *"
   workflow_dispatch:
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    env:
+      GOOGLE_NEWS_RSS: ${{ secrets.GOOGLE_NEWS_RSS }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      YT_PRIVACY_STATUS: ${{ secrets.YT_PRIVACY_STATUS || 'private' }}
 
     steps:
       - name: Checkout repo
@@ -17,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install system dependencies
         run: |
@@ -25,21 +32,6 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run auto uploader
-        env:
-          GOOGLE_NEWS_RSS: ${{ secrets.GOOGLE_NEWS_RSS }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_PRIVACY_STATUS: ${{ secrets.YT_PRIVACY_STATUS || 'private' }}
-        run: |
-          python scripts/build_news_video.py
-name: Run auto uploader      
-- name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade yt-dlp
